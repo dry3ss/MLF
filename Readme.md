@@ -1,0 +1,1 @@
+Neural network "framework" in C++ created for educational purpose and out of curiosity

@@ -1,0 +1,8 @@
+.vs/*
+Debug/*
+machine_learning_framework.sdf
+machine_learning_framework.sln
+machine_learning_framework/Debug/*
+*.vcxproj
+*.vcxproj.filters
+machine_learning_framework.vcxproj.filters
