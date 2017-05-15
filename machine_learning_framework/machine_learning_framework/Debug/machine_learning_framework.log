@@ -1,0 +1,29 @@
+﻿Build started 26/02/2017 00:51:35.
+     1>Project "D:\My_NeuralNetw_Framework\machine_learning_framework\machine_learning_framework\machine_learning_framework.vcxproj" on node 2 (Build target(s)).
+     1>ClCompile:
+         D:\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /sdl /Od /Oy- /D _MBCS /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc120.pdb" /Gd /TP /analyze- /errorReport:prompt ..\src\main.cpp
+         main.cpp
+     1>d:\my_neuralnetw_framework\machine_learning_framework\src\mlf_genetichandler.h(87): warning C4244: '=' : conversion from 'double' to 'float', possible loss of data
+                 d:\my_neuralnetw_framework\machine_learning_framework\src\mlf_genetichandler.h(84) : while compiling class template member function 'GeneticParametersContainer<MyTestType,T>::GeneticParametersContainer(const NetworkAutoConstructorParameters<T> &,const float,const float)'
+                 with
+                 [
+                     T=MyTestType
+                 ]
+                 d:\my_neuralnetw_framework\machine_learning_framework\src\main.cpp(110) : see reference to function template instantiation 'GeneticParametersContainer<MyTestType,T>::GeneticParametersContainer(const NetworkAutoConstructorParameters<T> &,const float,const float)' being compiled
+                 with
+                 [
+                     T=MyTestType
+                 ]
+                 d:\my_neuralnetw_framework\machine_learning_framework\src\main.cpp(110) : see reference to class template instantiation 'GeneticParametersContainer<MyTestType,T>' being compiled
+                 with
+                 [
+                     T=MyTestType
+                 ]
+       Link:
+         D:\Microsoft Visual Studio 12.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"D:\My_NeuralNetw_Framework\machine_learning_framework\Debug\machine_learning_framework.exe" /INCREMENTAL /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"D:\My_NeuralNetw_Framework\machine_learning_framework\Debug\machine_learning_framework.pdb" /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"D:\My_NeuralNetw_Framework\machine_learning_framework\Debug\machine_learning_framework.lib" /MACHINE:X86 Debug\main.obj
+         machine_learning_framework.vcxproj -> D:\My_NeuralNetw_Framework\machine_learning_framework\Debug\machine_learning_framework.exe
+     1>Done Building Project "D:\My_NeuralNetw_Framework\machine_learning_framework\machine_learning_framework\machine_learning_framework.vcxproj" (Build target(s)).
+
+Build succeeded.
+
+Time Elapsed 00:00:00.98

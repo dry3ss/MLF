@@ -1,0 +1,24 @@
+﻿  main.cpp
+d:\my_neuralnetw_framework\machine_learning_framework\src\MLF_GeneticHandler.h(87): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+  d:\my_neuralnetw_framework\machine_learning_framework\src\MLF_GeneticHandler.h(84): note: while compiling class template member function 'GeneticParametersContainer<MyTestType,T>::GeneticParametersContainer(const NetworkAutoConstructorParameters<T> &,const float,const float)'
+          with
+          [
+              T=MyTestType
+          ]
+  ..\src\main.cpp(83): note: see reference to function template instantiation 'GeneticParametersContainer<MyTestType,T>::GeneticParametersContainer(const NetworkAutoConstructorParameters<T> &,const float,const float)' being compiled
+          with
+          [
+              T=MyTestType
+          ]
+  ..\src\main.cpp(83): note: see reference to class template instantiation 'GeneticParametersContainer<MyTestType,T>' being compiled
+          with
+          [
+              T=MyTestType
+          ]
+  Generating code
+  0 of 859 functions ( 0.0%) were compiled, the rest were copied from previous compilation.
+    0 functions were new in current compilation
+    6 functions had inline decision re-evaluated but remain unchanged
+  Finished generating code
+  machine_learning_framework.vcxproj -> D:\My_NeuralNetw_Framework\machine_learning_framework\Release\machine_learning_framework.exe
+  machine_learning_framework.vcxproj -> D:\My_NeuralNetw_Framework\machine_learning_framework\Release\machine_learning_framework.pdb (Full PDB)
