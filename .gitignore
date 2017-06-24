@@ -6,3 +6,10 @@ machine_learning_framework/Debug/*
 *.vcxproj
 *.vcxproj.filters
 machine_learning_framework.vcxproj.filters
+*.pdb
+*.suo
+*.exe
+*.iobj
+*.ipdb
+*.log
+*.obj
