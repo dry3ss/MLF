@@ -75,7 +75,7 @@ struct NetworkSchema // what's used to describe the network :
 	unsigned int nb_input;
 	unsigned int nb_output;
 	std::vector<unsigned int> neurons_per_layer;
-	bool affine;
+	bool affine;//whether we have one more weight per neuron, to add an affine offset 
 public:
 	NetworkSchema(const unsigned int nb_input_ = 0, const std::vector<unsigned int> neurons_per_layer_ = std::vector<unsigned int>(), const unsigned int nb_output_ = 0, const bool affine_=true)
 		:nb_input(nb_input_), nb_output(nb_output_), neurons_per_layer(neurons_per_layer_), affine(affine_){}
