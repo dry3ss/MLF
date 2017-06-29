@@ -5,6 +5,8 @@
 #include "MLF_NetworkStorage.h"
 #include "MLF_NetworkBuilder.h"
 
+#include <typeinfo> // for typeid
+
 #include <utility>// pair (Breeding Selector) & Genetic breeder
 
 #include <cmath>//for max() (Breeding Selector)
@@ -136,11 +138,11 @@ struct GeneticVariablesContainer
 
 	inline void initCopy()//if you copied your individuals_container from somewhere else, you still need to initialize the copy to the right size
 	{
-		NetworkSchema schema = to_breed[0].individual.getSchema();
+		NetworkSchema schema = individuals_container[0].individual.getSchema();//to_breed[0].individual.getSchema()
 		NetworkBuilder<T> builder;
 		builder.initializeZeroes(schema);
 		NetworkStorage<T> model = builder.construct();
-		indiv_copy = std::vector<NetworkStorage<T>>(variables_container.individuals_container.size(), model);// now we have a vector of Networks that all have the right size
+		indiv_copy = std::vector<NetworkStorage<T>>(individuals_container.size(), model);// now we have a vector of Networks that all have the right size
 	}
 	inline std::string to_stringFitnessRank()
 	{
@@ -178,7 +180,7 @@ template <class T, class Type_Fitness=T>
 class indexComparisonStd : public indexComparisonInterface<T, Type_Fitness>
 {
 public:
-	bool operator() (size_t lhs, size_t rhs) { return (*to_sort)[lhs].fitness> (*to_sort)[rhs].fitness; }
+	bool operator() (size_t lhs, size_t rhs) { return (this->to_sort->at(lhs).fitness) > (this->to_sort->at(rhs).fitness); }
 };
 
 
@@ -289,9 +291,9 @@ public:
 		IndividualsVector<T, Type_Fitness> &out_container = variables_container.individuals_container;
 
 
-		NetworkStorage<T>::iterator out_iter = out_container[index_out].individual.begin();
-		NetworkStorage<T>::iterator partner1_iter = indiv_copy[partners.first].begin();
-		NetworkStorage<T>::iterator partner2_iter = indiv_copy[partners.second].begin();
+		typename NetworkStorage<T>::iterator out_iter = out_container[index_out].individual.begin();
+		typename NetworkStorage<T>::iterator partner1_iter = indiv_copy[partners.first].begin();
+		typename NetworkStorage<T>::iterator partner2_iter = indiv_copy[partners.second].begin();
 		auto uniform_distrib = RandomManagement::RandomEngineGlobal.getUniformDistribution(0.0, 1.0);
 		while (out_iter != out_container[index_out].individual.end())
 		{
@@ -330,7 +332,7 @@ public:
 		for (size_t a = 0; a < sz; a++)
 		{
 			NetworkStorage<T> current_indiv=variables_container.individuals_container[a].individual;
-			for (NetworkStorage<T>::iterator i = current_indiv.begin(); i != current_indiv.end(); i++)
+			for (typename NetworkStorage<T>::iterator i = current_indiv.begin(); i != current_indiv.end(); i++)
 			{
 				double choice = distrib_selection(RandomManagement::RandomEngineGlobal.getMT());
 				if (choice <= mut_rate)
@@ -360,7 +362,7 @@ public:
 			NetworkStorage<T> current_indiv = variables_container.individuals_container[a].individual;
 			unsigned int current_rank = variables_container.individuals_container[a].rank;
 			float current_mut_rate = current_rank / static_cast<float>(sz)*max_mut_rate;
-			for (NetworkStorage<T>::iterator i = current_indiv.begin(); i != current_indiv.end(); i++)
+			for (typename NetworkStorage<T>::iterator i = current_indiv.begin(); i != current_indiv.end(); i++)
 			{
 				double choice = distrib_selection(RandomManagement::RandomEngineGlobal.getMT());
 				if (choice <= current_mut_rate)
@@ -392,7 +394,7 @@ public:
 			NetworkStorage<T> current_indiv = variables_container.individuals_container[a].individual;
 			float current_mut = current_rank / static_cast<float>(sz);
 			Type_Fitness current_range = random_range*current_mut;//no "overflow" from our range this way
-			for (NetworkStorage<T>::iterator i = current_indiv.begin(); i != current_indiv.end(); i++)
+			for (typename NetworkStorage<T>::iterator i = current_indiv.begin(); i != current_indiv.end(); i++)
 			{
 				double choice = distrib_selection(RandomManagement::RandomEngineGlobal.getMT());
 				if (choice <= (current_mut*max_mut_rate))
@@ -462,7 +464,7 @@ public:
 		for (size_t a = 0; a < to_breed.size(); a++)
 		{
 			//we have created a (bad for now)iterator for our NetworkStorage just for this moment!
-			//for (NetworkStorage<T>::iterator i = to_breed[a].individual.begin(); i != to_breed[a].individual.end(); i++)
+			//for (typename NetworkStorage<T>::iterator i = to_breed[a].individual.begin(); i != to_breed[a].individual.end(); i++)
 			indiv_copy[a].content = to_breed[a].individual.content;
 		}
 

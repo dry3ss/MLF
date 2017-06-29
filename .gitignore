@@ -13,3 +13,5 @@ machine_learning_framework.vcxproj.filters
 *.ipdb
 *.log
 *.obj
+machine_learning_framework/build/*
+machine_learning_framework/bin/*

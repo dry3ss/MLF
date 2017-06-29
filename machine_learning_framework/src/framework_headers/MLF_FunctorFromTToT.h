@@ -1,6 +1,7 @@
 #pragma once
 
-#include <math.h>
+//#include <math.h>
+#include <cmath>
 #include <type_traits> //for type asserts
 
 

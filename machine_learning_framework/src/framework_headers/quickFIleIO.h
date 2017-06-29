@@ -22,7 +22,7 @@ public:
 			return false;
 		for (size_t i = 0; i < in.size(); i++)
 		{
-			for (NetworkStorage<T>::iterator iter = in[i].begin(); iter != in[i].end(); iter++)
+			for (typename NetworkStorage<T>::iterator iter = in[i].begin(); iter != in[i].end(); iter++)
 				file << std::to_string(*iter)<<" ";
 		}
 		file.close();
@@ -37,9 +37,11 @@ public:
 			return false;
 		for (size_t i = 0; i < in.size(); i++)
 		{
-			for (NetworkStorage<T>::iterator iter = in[i].begin(); iter != in[i].end(); iter++)
+			for (typename NetworkStorage<T>::iterator iter = in[i].begin(); iter != in[i].end(); iter++)
 			{
-				*iter=std::stod(file.operator>>());
+				T buff=0;
+				file >> buff;
+				*iter=std::stod(buff);
 			}
 		}
 		file.close();
@@ -55,7 +57,7 @@ public:
 		std::string buff = "";
 		for (size_t i = 0; i < in.size(); i++)
 		{
-			for (NetworkStorage<T>::iterator iter = in[i].individual.begin(); iter != in[i].individual.end(); iter++)
+			for (typename NetworkStorage<T>::iterator iter = in[i].individual.begin(); iter != in[i].individual.end(); iter++)
 			{
 				file >> buff;
 

@@ -4,7 +4,8 @@
 #include <vector>
 #include <type_traits> //for type asserts
 #include <exception>
-
+#include <cstddef> 
+#include <string>
 
 //TODO add 1 weight to each neurons to allow for affine treatment and not just linear
 //TODO construct a proper iterator 
@@ -57,7 +58,7 @@ public:
 	}
 	T& operator*()
 	{
-		return static_cast<T>( source->content[i][j][k]);// the exception will be directly thrown by the underlying source if need be
+		return static_cast<T&>( source->content[i][j][k]);// the exception will be directly thrown by the underlying source if need be
 	}
 	bool operator==(const NetworkStorageBadIterator& iter)
 	{
@@ -97,7 +98,7 @@ class NetworkStorage
 private:	
 	bool is_affine_network;
 public:
-	typedef NetworkStorageBadIterator< T> NetworkStorage< T>::iterator;
+	typedef NetworkStorageBadIterator<T> iterator;
 	Matrix3D content;
 public:
 
