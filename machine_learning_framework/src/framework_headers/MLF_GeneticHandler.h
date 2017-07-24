@@ -21,10 +21,10 @@ struct IndividualContainer // individual, fitness, ranking and status
 public:
 	NetworkStorage<T> individual;
 	Type_Fitness fitness;
-	unsigned int rank; // >=0 => actual rank (yes it starts at 0), -1= not calculated
+	size_t rank; // >=0 => actual rank (yes it starts at 0)
 public:
-	IndividualContainer() :individual(), fitness(0), rank(-1){};
-	IndividualContainer(NetworkStorage<T> &individual_) :individual(individual_), fitness(0), rank(-1){};
+	IndividualContainer() :individual(), fitness(0), rank(0){};
+	IndividualContainer(NetworkStorage<T> &individual_) :individual(individual_), fitness(0), rank(0){};
 
 	inline std::string to_stringFitnessRank()
 	{
@@ -77,16 +77,16 @@ template
 >
 struct GeneticParametersContainer
 {
-	NetworkAutoConstructorParameters<T> auto_constructor_params;
+	NetworkSchema<T> schema;
 	//for mating:
 	const float mating_proportion1_over2;
-	float const_mutation_rate;
 	//for mutation
+	float const_mutation_rate;
 
-	GeneticParametersContainer(const NetworkAutoConstructorParameters<T> &auto_constructor_params_, const float const_mutation_rate_percents = 1, const float prop_1_over_2 = 0.5)
-		:auto_constructor_params(auto_constructor_params_),mating_proportion1_over2(prop_1_over_2)
+	GeneticParametersContainer(const NetworkSchema<T> &schema_, const float const_mutation_rate_percents = 1, const float prop_1_over_2 = 0.5)
+		:schema(schema_),mating_proportion1_over2(prop_1_over_2)
 	{
-		const_mutation_rate = const_mutation_rate_percents*auto_constructor_params.schema.getTotalNumberNeurons() / 100.0;
+		const_mutation_rate = const_mutation_rate_percents*schema.getTotalNumberNeurons() / 100.0;
 	}
 };
 
@@ -117,28 +117,27 @@ struct GeneticVariablesContainer
 		{
 			individuals_container[i].individual.content.swap(to_swap[i].content);
 		}
-		initCopy();
 	}
 
-	inline void init(const unsigned int size_pop, const NetworkAutoConstructorParameters<T> param)
+	inline void init(const unsigned int size_pop, const NetworkSchema<T> schema)
 	{
 
 		individuals_container = IndividualsVector<T, Type_Fitness>(size_pop, IndividualContainer<T, Type_Fitness>());
 		NetworkBuilder<T> builder;
-		builder.initializeZeroes(param.schema);
+		builder.initializeZeroes(schema);
 		NetworkStorage<T> model = builder.construct();
 		for (size_t i = 0; i < size_pop; i++)
 		{
 			individuals_container[i].individual = model;//first we get the right structure (filled with zeroes, but it's about the structure)
-			builder.fillAnyNetwokRandom(individuals_container[i].individual, param.min_random_weights, param.max_random_weights);	// we fill randomly the structure		
+			builder.fillAnyNetwokRandom(individuals_container[i].individual, schema.min_random_weights, schema.max_random_weights);	// we fill randomly the structure		
 		}
 
 		indiv_copy = std::vector<NetworkStorage<T>>(individuals_container.size(), model);// now we have a vector of Networks that all have the right size
 	}
 
-	inline void initCopy()//if you copied your individuals_container from somewhere else, you still need to initialize the copy to the right size
+	inline void initAfterCopy()//if you copied your individuals_container from somewhere else, you still need to initialize the copy to the right size
 	{
-		NetworkSchema schema = individuals_container[0].individual.getSchema();//to_breed[0].individual.getSchema()
+		NetworkSchema<T> schema = individuals_container[0].individual.getSchema();//to_breed[0].individual.getSchema()
 		NetworkBuilder<T> builder;
 		builder.initializeZeroes(schema);
 		NetworkStorage<T> model = builder.construct();
@@ -160,7 +159,27 @@ struct GeneticVariablesContainer
 
 
 /*#######################################Custom comparison (index based) for our containers##########################################*/
-
+// This is the comparator obj that will be used to rank all individuals 
+//based on their fitness score (the ranking can then be used during breeding/mutation).
+//This one NEEDS to be an child of the indexComparisonInterface interface class.
+//It cannot be a simple comparison because the indexComparisonStd will need to compares scores 
+//given only the 2 indexes of the individuals, not the scores themselves, because
+//we want to rank the individuals, not only the scores and we want to be able to use std::sort().
+//So the way this works is as follows:
+// -before the actual ranking, the comparator object is initialized so has to get pointers to the
+//GeneticParametersContainer and GeneticVariablesContainer and thus access to the array inside
+//the GeneticVariablesContainer containing the scores for each individual, it stores a pointer
+//to this array as this->to_sort
+// -a new array (index_to_sort) containing all the integers from 0 to [number of elements in the array to sort]
+//is created and this will be the one we will sort using std::sort() and passing the comparator
+//object as its 3rd argument
+// -the comparator  only has access to the the 2 elements in index_to_sort,and since those are indices in the
+//constant (during the sorting at least) array from GeneticVariablesContainer containing the scores of the 
+//individuals so it only has to do a comparison between the two elements referenced by:
+//(to_sort->at(lhs).fitness) and  (to_sort->at(rhs).fitness) such as : 
+//(to_sort->at(lhs).fitness) > (to_sort->at(rhs).fitness) for example for indexComparisonStd to get
+//NOTE: since we are using std::sort() and a ">" comparison, here with indexComparisonStd, the higher
+//the fitness, the "better" it will be
 template <class T, class Type_Fitness=T>
 class indexComparisonInterface
 {
@@ -175,7 +194,8 @@ public:
 		:to_sort(nullptr){}
 	virtual bool operator() (size_t lhs, size_t  rhs) = 0;
 };
-
+//indexComparisonStd ranks in a "higher is better" fashion for the fitness: higher fitness=lower rank
+//(rank 0 being the best)
 template <class T, class Type_Fitness=T>
 class indexComparisonStd : public indexComparisonInterface<T, Type_Fitness>
 {
@@ -185,17 +205,19 @@ public:
 
 
 /*#######################################Breeding Selector##########################################*/
-template <class T, class Type_Fitness >
-class GeneticBreederInterface; //forward declaration
-
-
+//This is the function that will be used to
+//determine which individual will be coupled each and every time during the mating/breeding
+//process. It's job is to set the "partners" attribute of the GeneticVariablesContainer
+//with a std::pair containing the indexes of two different individuals to be mated.
 template <class T, class Type_Fitness=T>
 class GeneticBreedSelectorInterface
 {
 public:
 	virtual inline void operator()(GeneticVariablesContainer<T, Type_Fitness>&variables_container, const GeneticParametersContainer<T,Type_Fitness>  &params_container) = 0;
 };
-
+//GeneticBreedFitnessBasedSelector is a simple "rouletter based" selector meaning that
+//the chance of being selected for reproduction increases with the fitness(assumed to be
+//higher is better) of the individuals.
 /* ATTENTION: this class will not work (at least it will be as if the negative values are 0) if you use negative fitness as well as positive !
 	Also note: Fitness is assumed to be higher=better //TODO make that behaviour configurable
 */
@@ -209,7 +231,6 @@ protected:
 	inline size_t getIndexSelectedIndividual(Type_Fitness &rand_)
 	{
 		Type_Fitness curr_sum = 0;
-		//TODO check if the defautl param works !
 		for (size_t i = 0; i < roulettes_vec.size(); i++)
 		{
 			curr_sum += roulettes_vec[i];
@@ -221,7 +242,6 @@ protected:
 	inline size_t getIndexSelectedIndividual(Type_Fitness &rand_, size_t to_skip )
 	{
 		Type_Fitness curr_sum = 0;
-		//TODO check if the defautl param works !
 		for (size_t i = 0; i < roulettes_vec.size(); i++)
 		{
 			if (i == to_skip)
@@ -268,13 +288,20 @@ public:
 	}
 };
 /*#######################################Breeding: Mating##########################################*/
+//This is the function that will be applied to determine how
+//the selected couple will be "mixed" during the breeding process to obtain the new individual.
+
 template <class T, class Type_Fitness=T>
 class GeneticBreedMatingInterface
 {
 public:
 	virtual inline void operator()(GeneticVariablesContainer<T, Type_Fitness>&variables_container, const GeneticParametersContainer<T,Type_Fitness>  &params_container) = 0;
 };
-
+//GeneticBreedUniformMating is a simple mating process in which for each weight of the new individual
+//one of the two possible weights of its parents is chosen (without change). The proportion of parent1
+//over parent2 is determined by the "mating_proportion1_over2" attribute of GeneticParametersContainer
+//(default is 0.5, remember that with GeneticBreedFitnessBasedSelector, the first parent has a greater
+//chance of having a higher fitness score)
 template <class T, class Type_Fitness=T>
 class GeneticBreedUniformMating : public GeneticBreedMatingInterface<T, Type_Fitness>
 {
@@ -310,13 +337,17 @@ public:
 
 
 /*#######################################Mutation##########################################*/
+//This is the function that will be applied to each and every
+//individual to mutate its weights, it provides both the selection of which weights (optionnaly 
+//of individuals) to mutate and how to do this.
 template <class T, class Type_Fitness = T>
 class GeneticMutationInterface
 {
 public:
 	virtual inline void operator()(GeneticVariablesContainer<T, Type_Fitness>&variables_container, const GeneticParametersContainer<T,Type_Fitness>  &params_container) = 0;
 };
-
+//GeneticMutationConst uses a simple constant mutation rate on each and every weight that it finds 
+//in the GeneticParametersContainer
 template <class T, class Type_Fitness = T>
 class GeneticMutationConst: GeneticMutationInterface<T, Type_Fitness>
 {
@@ -328,7 +359,7 @@ public:
 		//btw 0 and 1 to choose if we are indeed going to mutate
 		auto distrib_selection = RandomManagement::RandomEngineGlobal.getUniformDistribution(0.0, 1.0);
 		//this one has the same range we used to construct our neuron's weights
-		auto distrib_weights = RandomManagement::RandomEngineGlobal.getUniformDistribution(params_container.auto_constructor_params.min_random_weights, params_container.auto_constructor_params.max_random_weights);
+		auto distrib_weights = RandomManagement::RandomEngineGlobal.getUniformDistribution(params_container.schema.min_random_weights, params_container.schema.max_random_weights);
 		for (size_t a = 0; a < sz; a++)
 		{
 			NetworkStorage<T> current_indiv=variables_container.individuals_container[a].individual;
@@ -344,7 +375,8 @@ public:
 	}
 };
 
-//here the rate of mutation depends on the rank of the previous individual that was in your spot in the last generation, the more well ranked he was, the less mutations you should have
+//here the rate of mutation depends on the rank of the previous individual that was in your spot
+//in the last generation, the more well ranked he was, the less mutations you should have
 template <class T, class Type_Fitness = T>
 class GeneticMutationSimpleRank : GeneticMutationInterface<T, Type_Fitness>
 {
@@ -356,7 +388,7 @@ public:
 		//btw 0 and 1 to choose if we are indeed going to mutate
 		auto distrib_selection = RandomManagement::RandomEngineGlobal.getUniformDistribution(0.0, 1.0);
 		//this one has the same range we used to construct our neuron's weights
-		auto distrib_weights = RandomManagement::RandomEngineGlobal.getUniformDistribution(params_container.auto_constructor_params.min_random_weights, params_container.auto_constructor_params.max_random_weights);
+		auto distrib_weights = RandomManagement::RandomEngineGlobal.getUniformDistribution(params_container.schema.min_random_weights, params_container.schema.max_random_weights);
 		for (size_t a = 0; a < sz; a++)
 		{
 			NetworkStorage<T> current_indiv = variables_container.individuals_container[a].individual;
@@ -374,7 +406,10 @@ public:
 	}
 };
 
-//here the values of mutation as well as the rate, both depend on the rank of the previous individual that was in your spot in the last generation, the more well ranked he was, the less mutations you should haveand the less profound they'll be
+//here the values of mutation as well as the rate, both depend on the rank of the previous 
+//individual that was in your spot(so not necessarilly any of your parents !) in the last
+//generation, the more well ranked he was,the less mutations you should have 
+//and the less profound they'll be
 template <class T, class Type_Fitness = T>
 class GeneticMutationDoubleRank : GeneticMutationInterface<T, Type_Fitness>
 {
@@ -384,8 +419,8 @@ public:
 		const float max_mut_rate = params_container.const_mutation_rate;
 		size_t sz = variables_container.individuals_container.size();
 		auto distrib_selection = RandomManagement::RandomEngineGlobal.getUniformDistribution(0.0, 1.0);
-		Type_Fitness random_range = params_container.auto_constructor_params.max_random_weights -params_container.auto_constructor_params.min_random_weights;
-		auto distrib_weights = RandomManagement::RandomEngineGlobal.getUniformDistribution(params_container.auto_constructor_params.min_random_weights, params_container.auto_constructor_params.max_random_weights);
+		Type_Fitness random_range = params_container.schema.max_random_weights -params_container.schema.min_random_weights;
+		auto distrib_weights = RandomManagement::RandomEngineGlobal.getUniformDistribution(params_container.schema.min_random_weights, params_container.schema.max_random_weights);
 		for (size_t a = 0; a < sz; a++)
 		{
 			unsigned int current_rank = variables_container.individuals_container[a].rank;
@@ -393,7 +428,7 @@ public:
 				continue;
 			NetworkStorage<T> current_indiv = variables_container.individuals_container[a].individual;
 			float current_mut = current_rank / static_cast<float>(sz);
-			Type_Fitness current_range = random_range*current_mut;//no "overflow" from our range this way
+			Type_Fitness current_range =static_cast<Type_Fitness>(random_range*current_mut);//no "overflow" from our range this way
 			for (typename NetworkStorage<T>::iterator i = current_indiv.begin(); i != current_indiv.end(); i++)
 			{
 				double choice = distrib_selection(RandomManagement::RandomEngineGlobal.getMT());
@@ -437,12 +472,12 @@ public:
 
 		function_container.sorting_index_comparison_function_type.setParameters(variables_container, params_container);
 
-		std::vector<size_t> index_to_sort = std::vector<size_t>(individual_containers.size(), 0);//make a copy of all indices, that's what we'll sort
+		std::vector<size_t> index_to_sort = std::vector<size_t>(individual_containers.size(), 0);//make all indices in [0,individual_containers.size()[, that's what we'll sort
 		for (size_t i = 0; i < individual_containers.size(); i++)
 		{
-			index_to_sort[i] = i;//fill the copy
+			index_to_sort[i] = i;//fill the indice
 		}
-		std::sort(index_to_sort.begin(), index_to_sort.end(), function_container.sorting_index_comparison_function_type);//sort it with a special sorting which translates the index into the fitness and compares after
+		std::sort(index_to_sort.begin(), index_to_sort.end(), function_container.sorting_index_comparison_function_type);//sort it with a special sorting which translates the index into the fitness and compares afterwards
 		
 		for (size_t i = 0; i < individual_containers.size(); i++)
 		{
@@ -476,18 +511,9 @@ public:
 			variables_container.index_out = i;
 			//partners selection :
 			function_container.breeding_selection_function(variables_container, params_container);
-			//hybridation :
+			//hybridation :indiv_copy
 			function_container.breeding_mating_function(variables_container, params_container);
 		}
-		/*
-		//now we have to swap (to avoid copy time) our to_breed[i].individual.content and  our indiv_copy[i].content
-		for (size_t i = 0; i < to_breed.size(); i++)
-		{
-			if (to_breed[i].rank == 1)//since it's not in indiv_copy because we didn't touch it, we have to keep it
-				continue;
-			to_breed[i].individual.content.swap(indiv_copy[i].content);
-		}
-		*/
 	}
 	inline void mutate()
 	{

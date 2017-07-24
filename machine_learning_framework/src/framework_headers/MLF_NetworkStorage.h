@@ -70,16 +70,24 @@ public:
 	}
 };
 
+template<class T>
 struct NetworkSchema // what's used to describe the network : 
 	//number of input, array of the number of neurons per layers, number of outputs, whether or not it has one extra weight for each neuron (a constant so as to move from linear to affine)
 {
 	unsigned int nb_input;
 	unsigned int nb_output;
 	std::vector<unsigned int> neurons_per_layer;
+	T min_random_weights;
+	T max_random_weights;
 	bool affine;//whether we have one more weight per neuron, to add an affine offset 
 public:
-	NetworkSchema(const unsigned int nb_input_ = 0, const std::vector<unsigned int> neurons_per_layer_ = std::vector<unsigned int>(), const unsigned int nb_output_ = 0, const bool affine_=true)
-		:nb_input(nb_input_), nb_output(nb_output_), neurons_per_layer(neurons_per_layer_), affine(affine_){}
+	NetworkSchema(const unsigned int nb_input_ = 0, 
+		const std::vector<unsigned int> neurons_per_layer_ = std::vector<unsigned int>(),
+		 const unsigned int nb_output_ = 0, const bool affine_=true,
+		  const T min_random_weights_ = -1, const T max_random_weights_ = 1)		
+		:nb_input(nb_input_), nb_output(nb_output_), neurons_per_layer(neurons_per_layer_),
+		 affine(affine_), min_random_weights(min_random_weights_), 
+		 max_random_weights(max_random_weights_){}
 	unsigned int getTotalNumberNeurons()
 	{
 		unsigned int nb = nb_output;
@@ -88,6 +96,37 @@ public:
 			nb_output += neurons_per_layer[i];
 		}
 		return nb;
+	}
+	std::string toStringForExport()
+	{
+		std::string r="["+std::to_string(min_random_weights)+";"
+			+std::to_string(max_random_weights)+"]:";
+		r.append(std::to_string(nb_input)+";");
+		for(unsigned int i=0;i<neurons_per_layer.size();i++)
+		{
+			if(i!=0)
+				r.append(",");
+			r.append(std::to_string(neurons_per_layer[i]));			
+		}
+		r.append(";");
+		r.append(std::to_string(nb_output));
+		return r;
+	}
+	std::string toStringVerbose()
+	{
+		std::string r="#####\nRange: ["+std::to_string(min_random_weights)+";";
+		r.append("#Inputs: "+std::to_string(nb_input)+";");
+		r.append("\n#Nodes: ");
+		for(unsigned int i=0;i<neurons_per_layer.size();i++)
+		{
+			if(i!=0)
+				r.append(",");
+			r.append(std::to_string(neurons_per_layer[i]));			
+		}
+		r.append(";\n#Outputs: ");
+		r.append(std::to_string(nb_output));
+		r.append("#####\n");
+		return r;
 	}
 };
 
@@ -102,7 +141,9 @@ public:
 	Matrix3D content;
 public:
 
-	bool checkCoherentNetwork()const; // check that number of weights in each neuron j of layer i+1 = number of neurons in layer i
+	bool checkCoherentNetwork()const; // check that it's a coherent network 
+	// <=> IF it is NOT an AFFINE network then number of weights in each neuron j of layer i+1 = number of neurons in layer i
+	// <=> IF IS not an AFFINE network then number of weights in each neuron j of layer i+1 = number of neurons in layer i+1
 	std::string to_string()const;
 	NetworkStorageBadIterator<T> begin() { return NetworkStorageBadIterator<T>(this); }
 	NetworkStorageBadIterator<T> end() 
@@ -115,7 +156,7 @@ public:
 	{
 		return is_affine_network; 
 	}
-	NetworkSchema getSchema()
+	NetworkSchema<T> getSchema()
 	{
 		int nb_input=0, nb_output = 0;
 		//lets check if its affine or not
@@ -126,7 +167,7 @@ public:
 		for (int i = 1; i < nb_layers+1; i++)
 			neurons_per_layer[i - 1] = content[i][0].size() - (is_affine_network ? 1 : 0);
 		nb_output = content[nb_layers].size() - (is_affine_network ? 1 : 0);
-		return 	NetworkSchema(nb_input, neurons_per_layer, nb_output);
+		return 	NetworkSchema<T>(nb_input, neurons_per_layer, nb_output);
 	}
 };
 

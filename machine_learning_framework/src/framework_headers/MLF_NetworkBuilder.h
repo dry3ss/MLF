@@ -9,32 +9,6 @@
 #include <limits>
 
 
-template
-<
-	class T
->
-struct NetworkAutoConstructorParameters // :doesn't allow' for an exact copy, only same structure
-{
-	NetworkSchema schema;
-	T min_random_weights;
-	T max_random_weights;
-	NetworkAutoConstructorParameters(const NetworkSchema & schm = NetworkSchema(), const T min_random_weights_ = -1, const T max_random_weights_ = 1)
-		:schema(schm), min_random_weights(min_random_weights_), max_random_weights(max_random_weights_){}
-};
-
-//TODO this only allow the standard type of vector, not the one usign a non-standard allocator
-
-/*
-template <class T,//the really important one eg float, double ...
-	template<class, class> class V1 = std::vector,//the outer shell container
-	template<class, class> class V2 = V1,
-	template<class, class> class V3 = V1,//the inner shell container, the one that actually holds T	 
-	class A3 = std::allocator<T>,
-	class A2 = std::allocator<V3<T,A3>>,
-	class A1 = std::allocator<V2<V3<T, A3>, A2>> 
-			>//end of template of template
-		// and YES this template of template is UGLY ...
-*/
 template <class T>
 class NetworkBuilder
 {
@@ -50,7 +24,7 @@ class NetworkBuilder
 	*/
 protected:
 	NetworkStorage<T> network;
-	NetworkAutoConstructorParameters<T> auto_constructor_params;
+	NetworkSchema<T> network_schema;
 public:
 	/*  input_size is the number of inputs
 	network_sizes is a vector containing the number of neurons to create per layer (excluding the output layer)
@@ -58,7 +32,7 @@ public:
 	*/
 	void initializeZeroes(const int input_size, const std::vector<unsigned int> network_sizes, const int output_size, const bool affine_=true)
 	{
-		auto_constructor_params.schema = NetworkSchema(input_size, network_sizes, output_size, affine_);//update the schema
+		network_schema = NetworkSchema<T>(input_size, network_sizes, output_size, affine_);//update the schema
 		network.content = Matrix3D(network_sizes.size() + 1, Matrix());// +1 for output
 		if(!affine_)
 		{ 
@@ -85,13 +59,13 @@ public:
 			network.content[network_sizes.size()] = Matrix(output_size, Vector(network_sizes[network_sizes.size() - 1]+1, 0));
 		}
 	}
-	void initializeZeroes(const NetworkSchema s)
+	void initializeZeroes(const NetworkSchema<T> s)
 	{
 		initializeZeroes(s.nb_input, s.neurons_per_layer, s.nb_output,s.affine);
 	}
 	NetworkStorage<T> construct() { return network; }
-	NetworkBuilder() :network(), auto_constructor_params(){}
-	NetworkStorage<T> &access() { return network; } //the difference with construct is that here you are manipulating directly everything , BE CAREFUL here the auto_constructor_params is not updated!
+	NetworkBuilder() :network(), network_schema(){}
+	NetworkStorage<T> &access() { return network; } //the difference with construct is that here you are manipulating directly everything , BE CAREFUL here the network_schema is not updated!
 
 	static void fillAnyNetwokRandom(NetworkStorage<T> &network_,const T min_included, const T max)
 	{
@@ -110,17 +84,17 @@ public:
 	}
 	void fillRandom(const T min_included, const T max)
 	{
-		auto_constructor_params.min_random_weights = min_included;
-		auto_constructor_params.max_random_weights = max;
+		network_schema.min_random_weights = min_included;
+		network_schema.max_random_weights = max;
 		fillAnyNetwokRandom(network, min_included, max);
 	}
 
-	NetworkAutoConstructorParameters<T> getAutoConstructorParam(){ return auto_constructor_params; }
-	void autoInitializeAndFill(const NetworkAutoConstructorParameters<T> &param)
+	NetworkSchema<T> getNetworkSchema(){ return network_schema; }
+	void autoInitializeAndFill(const NetworkSchema<T> &param)
 	{
-		auto_constructor_params = param;
-		initializeZeroes(auto_constructor_params.schema);
-		fillRandom(auto_constructor_params.min_random_weights, auto_constructor_params.max_random_weights);
+		network_schema = param;
+		initializeZeroes(network_schema);
+		fillRandom(network_schema.min_random_weights, network_schema.max_random_weights);
 	}
 };
 

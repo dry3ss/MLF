@@ -15,3 +15,5 @@ machine_learning_framework.vcxproj.filters
 *.obj
 machine_learning_framework/build/*
 machine_learning_framework/bin/*
+machine_learning_framework/CMakeFiles/*
+machine_learning_framework/lcmake.sh
