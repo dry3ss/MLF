@@ -2,71 +2,70 @@
 #include <iostream>
 #include <type_traits>
 
-#include "MLF_GeneticHandler.h" //DEBUG oNLY
+#include "GeneticOptimizer.h"
 #include "quickFIleIO.h"
+#include "MLF_Utilities.h"
 
-template<class T>
-std::string arrtoString(T arr)
-{
-	std::string res = "";
-	for (size_t i = 0; i < arr.size(); i++)
-	{
-		res += std::to_string(arr[i]) + " ";
-	}
-	return res;
-}
 
-template <class T, class FunctionType>
-std::string testFunctionRange()
-{
-	FunctionType to_test;
-	
-	return testFunctionRange<T, FunctionType>(to_test);
-}
-
-template <class T, class FunctionType>
-std::string testFunctionRange(FunctionType to_test)
-{
-	std::vector<T> test_function = { -100, -50, -10, -2, -1, 0, 1, 2, 10, 50, 100 };
-	std::vector<T>test_function_res(test_function.size(), 0);
-	for (size_t i = 0; i < test_function.size(); i++)
-		test_function_res[i] = to_test(test_function[i]);
-	std::string res = std::string("###Function range test for function type: ") + typeid(FunctionType).name() + "\n";
-	for (size_t i = 0; i < test_function.size(); i++)
-	{
-		res += std::to_string(test_function[i]) + "->" + std::to_string(test_function_res[i]) + "\n";
-	}
-	return res;
-}
 
 //This is a very very simple function that will grow the fitness with the output values.
 //Meaning that the network will react by increasing the weights of pretty much each and
 //every node.
-template<class T>
-T fitnessFunction(const std::vector<T> &out)
-{
-	T r = 0;
-	for (size_t i = 0; i < out.size(); i++)
-	{
-		r += out[i];
-	}
-	return r;
-}
 
-//#define toexport
+template <class T, class Type_Fitness = T>
+class MySimpleFitnessFunction : public SimpleFitnessFunctionInterface<T, Type_Fitness>
+{
+public:
+	virtual inline Type_Fitness operator()(const Vector<T> &out)
+	{
+		T r = 0;
+		for (size_t i = 0; i < out.size(); i++)
+		{
+			r += std::max(static_cast<T>(0), out[i]);
+		}
+		if (r != 0)
+			r= 1 / r;
+		return r;
+	}
+};
+
+template <class T, class Type_Fitness = T>
+class MyOptimizedFitnessFunction : public OptimizedFitnessFunctionInterface<T, Type_Fitness>
+{
+public:
+	virtual inline Type_Fitness operator()(GeneticVariablesContainer<T, Type_Fitness>&variables_container, const GeneticParametersContainer<T, Type_Fitness>  &params_container)
+	{
+		T &r = variables_container.individuals_container[variables_container.index_out].fitness;
+		const Vector<T> &out = variables_container.individuals_container[variables_container.index_out].output;
+		r = 0;
+		for (size_t i = 0; i < out.size(); i++)
+		{
+			r += std::max(static_cast<T>(0), out[i]);
+		}
+		if (r != 0)
+			r = 1 / r;	
+		return r;
+	}
+};
+
 int main()
 {
+
+	using namespace mlf_utils_namespace;
+	std::cout.precision(17);//the max precision for doubles;
 	//####################Preparation of the neural net(s)####################
 
 	// I. The net's structure:
 		// Useful everywhere, the type the net will use, meaning the type each weight, input and output will use: 
 		using MyTestType = double;
+		
+		const unsigned int size_in = 2, size_out = 2;
 		// Array containing the number of neurons each layer will have
-		std::vector<unsigned int> sizes = { 5,7,6 };	
+		std::vector<unsigned int> sizes = { 2 };//{ 5,7,6 };	
 		// We create a schematic of our neural net : it takes 2 inputs, uses the number of neurons per layer defined beforehand, and gives 2 outputs
 		//the false tells us that each neuron will not use an additional weight as an offset
 		//here all the weights will be between -1 and 1
-		NetworkSchema<MyTestType> schema(2, sizes, 2,false,-1, 1);	
+		NetworkSchema<MyTestType> schema(size_in, sizes, size_out,false,-1, 1);
 
 	// II. The activation function (function applied after the summation on each neuron):
 		// We'll use a sigmoid function, and we'll make it so that the range is ]-2;2[ 
@@ -75,42 +74,6 @@ int main()
 			SigmoidFunctorFromTToT<MyTestType> activation_function_sigmoid(2);
 		// We just print the range chosen for this function before using it
 		std::cout << testFunctionRange<MyTestType, SigmoidFunctorFromTToT<MyTestType>>(activation_function_sigmoid) << std::endl;
-
-
-//####################Construction of a tester####################
-	//(what gives us the ouput of one net based on the inputs and the weights in the net) 
-	//it can be used with ANY neural net working on a given type of data (ie float, double ...)
-	TestNetwork<MyTestType> tester;
-	// We set its activation function to the sigmoid we defined earlier, it expects a POINTER, since this one will be able to change
-	tester.setActivation_function(&activation_function_sigmoid);
-	// Print the status of the activation function and the tester
-	std::cout << tester.to_string() << std::endl;
-
-
-//@@@ OPTION A: "Testing" (ie: getting the output of a NN based on given inputs) one neural net@@@
-	//####################Construction of a (random here) neural net####################
-	NetworkBuilder<MyTestType> builder;
-	// We tell the builder to use as an autoconstructor our schema and to populate it with random values between those defined earlier in network_structure_
-	builder.autoInitializeAndFill(schema);
-	// We get back our constructed net
-	NetworkStorage<MyTestType> net_1 = builder.construct();	
-	//####################Testing the output of our neural net for a given input####################
-	std::vector<MyTestType> in = { 0.1,2.5};
-	std::vector<MyTestType> out =tester.getResults(in);
-
-
-
-	//TODO this is debug
-	const std::string file_name="export.txt";
-	QuickFileIO<MyTestType> QFIO(file_name);
-	std::vector<NetworkStorage<MyTestType>> a;
-	a.push_back(net_1);
-	QFIO.exportFile(schema,a);
-	system("DEBUG: Done exporting");
-
-
-
-
 
 //@@@ OPTION B: Use the GeneticOptimizer to breed&select random neural nets based on chosen parameters@@@
 	
@@ -186,70 +149,81 @@ int main()
 		//TODO be able to add the "const" keyword without issue...
 	 GenFunctionType GFC;//Now that we've decided what it will contain, we can declare it
 
-	const GeneticParametersContainer<MyTestType> GPC(schema,87);//It is mandatory
+	const GeneticParametersContainer<MyTestType> GPC(schema,50,80);//It is mandatory
 	//to give the network structure (of type NetworkAutoConstructorParameters) so that the algo
 	//will know among other things the min&max possible weights
-	//Optionnally:
+	//Optionnally:	
+	// -the proportion of weights from parent n°1 over parent n°2  in PERCERNTS passed on to the child if 
+	//  GeneticBreedUniformMating is used (default is half, so that the split is equal
 	// -the constant mutation rate in PERCERNTS if GeneticMutationConst is used  (default 1%)
-	// -the proportion of weights from parent n°1 over parent n°2 passed on to the child if 
-	//  GeneticBreedUniformMating is used (default is half, so that the split is equal)
+	// note that it is also used in GeneticMutationSimpleRank and GeneticMutationDoubleRank
+	// to set the MAXIMUM rate of mutation
 	//can be set.
 
 	GeneticVariablesContainer<MyTestType> GVC;//We have to create it (no arguments)
-	const size_t sz = 100;//size of every generation of the population
 
-	//then either :
-	//#Option 1
-	GVC.init(sz, schema);//Init with (mandatory):
+	const size_t sz_1_gen = 100;//size of every generation of the population
+	GVC.initAndGenerateNewPop(sz_1_gen, schema);//Init with (mandatory):
 	// -the number of individuals in the population
 	// -the the network structure (of type NetworkAutoConstructorParameters)
-	//this will generate a completely new population
-	//OR
+	//this will have generated a completely new population
 
-	// //#Option2 
-	// //Import a population from a file then swap the content with our GVC:
-	// const std::string file_name="import.txt";
-	// NetworkStorage<MyTestType> to_swap;
-	// QuickFileIO<MyTestType> QFIO(file_name);
-	// QFIO.createAndImportInto(to_swap,schema,sz);
-	// GVC.swapIndividualsFrom(to_swap);
-	// GVC.initAfterCopy();
-
-
+	//the tester inside GVC is what gives us the ouput of one net based on the inputs and the weights in the net
+	//it can be used with ANY NN working on a given type of data (ie float, double ...)
+	// We set its activation function to the sigmoid we defined earlier, it expects a POINTER, since this one will be able to change
+	GVC.setTesterActivation_function(&activation_function_sigmoid);
+	
 	GeneticOptimizer<MyTestType, GenFunctionType> GO(GFC, GPC, GVC);//Now we just create the actual Optimizer
 
-	size_t number_gen = 100;
+	const size_t number_gen = 1000;
+	MyTestType &max_fit = GVC.current_max_fit, &min_fit = GVC.current_min_fit;//for printing only
 
+	Vector<MyTestType> input = { 1 ,1 };//this is the arbitrary input that we will use to test all our networks
 
-	Vector<MyTestType> input = { 0.1, 1.1 };
-
-	MyTestType max_fit = 0,prev_max=0,min_fit=0;
+	//I created two fitness function performing exactly the same job to showcase how the "optimized" version is created
+	//any of the two can be used here even though the optimized is well, optimized and should perform slightly better (at least it did during my tests)
+	//MySimpleFitnessFunction<MyTestType> fitnessFunction;
+	MyOptimizedFitnessFunction<MyTestType> fitnessFunction;	
+	bool ok = true;
 	for (size_t gen = 0; gen < number_gen;gen++)
 	{ 
-		for (size_t i = 0; i < sz; i++)
-		{
-			tester.setLayers(&GVC.individuals_container[i].individual);
-			Vector<MyTestType> outV = tester.getResults(input);
-			// III. The fitness function (higher is better) applied to determine which members of the population will successfully reproduce themselves
-			GVC.individuals_container[i].fitness = fitnessFunction(outV);
-		}
+		ok=GO.getOuputsOfIndividualsFrom(input);//the GO will use the tester setup previsouly in the GVC to get the output
+		//of every NN based on the provided input and thus populate GVC.individuals_container[i].ouput
+		if (!ok)
+			return 0;
 
+		GO.getFitnessOfIndividualsFromOutputs(fitnessFunction);//using this fitness function, the GO gets the fitness of 
+		//the previously calculated outputs and puts it in GVC.individuals_container[i].fitness
 
-		//TODO debug only:
-		prev_max = max_fit;
-		GO.generateRanks();
-		max_fit = GVC.current_max_fit;
-		min_fit = GVC.current_min_fit;
-		if (max_fit < prev_max)
-			std::cout << "ERREUR max_fit < prev_max" << std::endl;		
+		GO.sortFitnessToGenerateRanks();//usingt std::sort and a modified comparison operator, the GO "sorts" the indexes
+		//of the individuals based on the fitness scores of those individuals and thus fill GVC.individuals_container[i].rank
 
-		if ((gen+1) % (number_gen / 10) == 0 || (gen==0))
-		{
-			std::cout << std::to_string((gen + 1) / (number_gen / 100)) + "% " + std::to_string(gen + 1) + "/" + std::to_string(number_gen) + ":" + std::to_string(min_fit)+"->"+ std::to_string(max_fit) << std::endl;
-		}
+		std::cout<<toString(gen, number_gen, GVC);//This function is clearly not very good performance wise, but it shouldn't be called to often to cause any real problem
 		GO.breed();
-		GO.mutate();
+		GO.mutate();		
 	}
+
+	//let's rank one last time to see who's the best at the very last generation 
+	ok=GO.getOuputsOfIndividualsFrom(input);
+	if (!ok)
+		return 0;
+	GO.getFitnessOfIndividualsFromOutputs(fitnessFunction);
+	GO.sortFitnessToGenerateRanks();
+
+
+	system("pause");
+	//let's see the output of the very best one
+	IndividualContainer<MyTestType> &best = GVC.getIndividualWithRank();//gets us the NN with ranked 0 (ie best fitness)
+	GVC.tester.setLayers(&best.individual);//we tell the tester that this is the individual we want to work on
+	std::vector<MyTestType> out_ = GVC.tester.getResults(input);
+	std::cout << toString(out_);
+	system("pause");
+	//#############################Export to file###################
+	//let's export our results to a file
+	std::string file_name = "export.txt";
+	QuickFileIO<MyTestType> QFIO (file_name);
+	ok=QFIO.exportFile(GPC.schema, GVC.individuals_container);
+	std::cout << "Export: " << (ok ? "Successful" : "Unsuccessful") << "\n";
 	system("pause");
 	return 0;
 }

@@ -97,7 +97,7 @@ public:
 		}
 		return nb;
 	}
-	std::string toStringForExport()
+	std::string toStringForExport() const
 	{
 		std::string r="["+std::to_string(min_random_weights)+";"
 			+std::to_string(max_random_weights)+"]:";
@@ -110,12 +110,14 @@ public:
 		}
 		r.append(";");
 		r.append(std::to_string(nb_output));
+		r.append(";");
+		r.append(affine ? "Y" : "N");
 		return r;
 	}
-	std::string toStringVerbose()
+	std::string toStringVerbose() const
 	{
-		std::string r="#####\nRange: ["+std::to_string(min_random_weights)+";";
-		r.append("#Inputs: "+std::to_string(nb_input)+";");
+		std::string r="#####\n#Range: ["+std::to_string(min_random_weights)+";"	+std::to_string(max_random_weights)+"]\n";
+		r.append("#Inputs: "+std::to_string(nb_input));
 		r.append("\n#Nodes: ");
 		for(unsigned int i=0;i<neurons_per_layer.size();i++)
 		{
@@ -123,9 +125,11 @@ public:
 				r.append(",");
 			r.append(std::to_string(neurons_per_layer[i]));			
 		}
-		r.append(";\n#Outputs: ");
+		r.append("\n#Outputs: ");
 		r.append(std::to_string(nb_output));
-		r.append("#####\n");
+		r.append("\n#Affine: ");
+		r.append(affine? "Y": "N");
+		r.append("\n#####\n");
 		return r;
 	}
 };
@@ -134,8 +138,6 @@ template<class T>
 class NetworkStorage
 {
 	using Matrix3D = std::vector< std::vector < std::vector<T> > >;
-private:	
-	bool is_affine_network;
 public:
 	typedef NetworkStorageBadIterator<T> iterator;
 	Matrix3D content;
@@ -144,20 +146,25 @@ public:
 	bool checkCoherentNetwork()const; // check that it's a coherent network 
 	// <=> IF it is NOT an AFFINE network then number of weights in each neuron j of layer i+1 = number of neurons in layer i
 	// <=> IF IS not an AFFINE network then number of weights in each neuron j of layer i+1 = number of neurons in layer i+1
-	std::string to_string()const;
-	NetworkStorageBadIterator<T> begin() { return NetworkStorageBadIterator<T>(this); }
-	NetworkStorageBadIterator<T> end() 
+	std::string toString()const;
+	NetworkStorageBadIterator<T> begin(){ return NetworkStorageBadIterator<T>(this); }
+	NetworkStorageBadIterator<T> end()
 	{ 
 		int i = content.size() - 1, j = content[i].size() - 1, k = content[i][j].size(); 
 		return NetworkStorageBadIterator<T>(this,i,j,k); 
 	}
 	
+	inline bool checkCoherentNetworkIfAffine()const;
+	inline bool checkCoherentNetworkINotfAffine()const;
+
 	bool isAffineNetwork() const
 	{
-		return is_affine_network; 
+		return checkCoherentNetworkIfAffine();//it will actually only return yes if it both affine and coherent,
+		//but if it's not coherent it's not really affine either ...
 	}
-	NetworkSchema<T> getSchema()
+	NetworkSchema<T> getPartialSchema()//doest not contain the range
 	{
+		bool is_affine_network= isAffineNetwork();
 		int nb_input=0, nb_output = 0;
 		//lets check if its affine or not
 
@@ -171,37 +178,58 @@ public:
 	}
 };
 
+
+template<class T>
+// <=> IF IS an AFFINE network then number of weights in each neuron j of layer i+1 = number of neurons in layer i+1
+inline bool NetworkStorage<T>::checkCoherentNetworkIfAffine()const
+{
+	if (content.size() <= 0)
+		return false;
+	for (size_t i = 1; i < content.size(); i++)
+	{
+		for (size_t j = 0; j < content[i].size(); j++)
+		{
+			if (content[i][j].size() != content[i - 1].size() + 1)
+				return false;
+		}
+	}
+	return true;
+}
+template<class T>
+//<= > IF it is NOT an AFFINE network then number of weights in each neuron j of layer i + 1 = number of neurons in layer i
+inline bool NetworkStorage<T>::checkCoherentNetworkINotfAffine()const
+{
+	if (content.size() <= 0)
+		return false;
+	for (size_t i = 1; i < content.size(); i++)
+	{
+		for (size_t j = 0; j < content[i].size(); j++)
+		{
+			if (content[i][j].size() != content[i - 1].size())
+				return false;
+		}
+	}
+	return true;
+}
+
+
 template<class T>
 bool NetworkStorage<T>::checkCoherentNetwork()const
 {
 	// check that it's a coherent network 
 	// <=> IF it is NOT an AFFINE network then number of weights in each neuron j of layer i+1 = number of neurons in layer i
-	// <=> IF IS not an AFFINE network then number of weights in each neuron j of layer i+1 = number of neurons in layer i+1
+	// <=> IF IS an AFFINE network then number of weights in each neuron j of layer i+1 = number of neurons in layer i+1
 	if (content.size() <= 0)
 		return false;
-	if(!is_affine_network)
-		for (size_t i = 1; i < content.size(); i++)
-		{
-			for (size_t j = 0; j < content[i].size(); j++)
-			{
-				if (content[i][j].size() != content[i - 1].size())
-					return false;
-			}
-		}
+	bool r = checkCoherentNetworkINotfAffine();
+	if (!r)
+		return checkCoherentNetworkIfAffine();
 	else
-		for (size_t i = 1; i < content.size(); i++)
-		{
-			for (size_t j = 0; j < content[i].size(); j++)
-			{
-				if (content[i][j].size() != content[i - 1].size()+1)
-					return false;
-			}
-		}
-	return true;
+		return true;
 }
 
 template<class T>
-std::string NetworkStorage<T>::to_string()const
+std::string NetworkStorage<T>::toString()const
 {
 	std::string res = "Number of layers: " + std::to_string(content.size())
 		+ "\nStatus: "

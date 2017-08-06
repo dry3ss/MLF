@@ -67,6 +67,15 @@ public:
 	NetworkBuilder() :network(), network_schema(){}
 	NetworkStorage<T> &access() { return network; } //the difference with construct is that here you are manipulating directly everything , BE CAREFUL here the network_schema is not updated!
 
+
+	static void initializeZeroesWholePop(std::vector<NetworkStorage<T>> &in, const NetworkSchema<T> &schema, const size_t &size_pop)
+	{
+		NetworkBuilder<T> builder;
+		builder.initializeZeroes(schema);
+		NetworkStorage<T> model = builder.construct();
+		in = std::vector<NetworkStorage<T>>(size_pop, model);
+	}
+
 	static void fillAnyNetwokRandom(NetworkStorage<T> &network_,const T min_included, const T max)
 	{
 		auto distrib = RandomManagement::RandomEngineGlobal.getUniformDistribution(min_included, max);

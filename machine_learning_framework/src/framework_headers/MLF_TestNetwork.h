@@ -27,7 +27,7 @@ private:
 	VectorMatrix<T> results;
 public:
 	TestNetwork<T>() :
-		currently_working(false), layers(NULL), activation_function(NULL), results()
+		currently_working(false), layers(nullptr), activation_function(nullptr), results()
 	{}
 	bool setActivation_function(FunctorFromTToT<T> *f)
 	{
@@ -47,15 +47,16 @@ protected:
 	void initializeResults();//initializes results to its good size
 public:
 	bool checkCoherentInput(int size_in); // check that number of weights in each neuron j of layer 0 = size_in =number of inputs in "in"
-	void* getLayers() {		return layers;	}
-	Vector<T> getResults(Vector<T> &in);// InterfaceIO<T> -> something like vector<float>, where we can do in[index];
-	std::string to_string();
+	void* getLayers() { return layers; }
+	void* getActivation_function() { return activation_function; }
+	Vector<T> getResults(const Vector<T> &in);
+	std::string toString();
 
 
 };
 
 template<class T >
-Vector<T> TestNetwork<T>::getResults(Vector<T> &in)
+Vector<T> TestNetwork<T>::getResults(const Vector<T> &in)
 {
 	if (!checkCoherentInput(in.size()) || activation_function==NULL)
 		return Vector<T>();//TODO ATTENTION THIS IS TEMPORARY, should throw exception
@@ -111,9 +112,13 @@ bool TestNetwork<T>::checkCoherentInput(int size_in)
 }
 
 template<class T>
-std::string TestNetwork<T>::to_string()
+std::string TestNetwork<T>::toString()
 {
-	return std::string("TestNetwork Status:\nActivation_function:")+((activation_function == NULL) ? "NOK" : "OK") +"\n";
+	std::string r = std::string("TestNetwork Status:\nActivation_function:")+((activation_function == NULL) ? "NOK" : "OK") +"\n";
+	r += "Network set ?:";
+	r += ((layers == NULL) ? "NOK" : "OK");
+	r +="\n";
+	return r;
 }
 
 
