@@ -17,3 +17,5 @@ machine_learning_framework/build_l/*
 machine_learning_framework/build_w/*
 machine_learning_framework/bin/*
 machine_learning_framework/CMakeFiles/*
+machine_learning_framework/.fuse_hidden*
+
